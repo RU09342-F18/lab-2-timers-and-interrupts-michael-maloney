@@ -1,0 +1,67 @@
+/**Michael Maloney
+ * 9/28/2018
+ * buttondelay.c
+ * LED blinks based on length of press
+ */
+
+#include <msp430.h>
+#include <hzconvert.h>
+
+volatile int counter; //counter of how long button is press in seconds, polled 100 times/sec
+
+void main(void) //initializing
+{
+  WDTCTL = WDTPW + WDTHOLD;     // Stop WDT
+  TA0CTL = TASSEL_1 + MC_1 + ID_3; //Timer A0 = smclock, up count mode, divider of 8
+  TA0CCTL0 = CCIE; // CCR0 interrupt enabled
+  TA0CCR0 = timerConvert(10, 8);
+
+  P1DIR &= 0x00;                //All pins set to out
+  P1DIR |= BIT0 + BIT6;            // P1.0 and P1.6 set to input
+
+  P1REN &= BIT3;                    // Resistor enabled for button
+  P1OUT &= BIT3;                    // Resistor changed to pull-up
+  P1IE |= BIT3;                    // P1.3 interrupt enabled
+  P1IES |= BIT3;                  // P1.3 Hi/lo edge
+  P1IFG &= ~BIT3;                // Initial flag set off
+
+  _BIS_SR(CPUOFF + GIE);          // Enter LPM0 when interrupt
+}
+
+
+// Timer A0 interrupt service routine
+#pragma vector=PORT1_VECTOR
+__interrupt void Timer_A (void)
+{
+   TA1CTL = TASSEL_1 + MC_1 + ID_3;    // Timer A1 ACLK/8, up
+   TA1CCTL0 = CCIE;                    // Enable flags
+   TA1CCR0 = timerConvert(100, 8);     // 100 flags/sec
+
+   int CCRcount = 32000/8 * counter/100;    //CCRcount is rounded int value of the Hz/8 * time
+   if (CCRcount > 0xffff) {CCRcount = 0xfffe;}  //if overflow, set CCRcount to 1 below max
+   TA0CCR0 = CCRcount;                      //CCR of Timer A0 set to CCRcount
+
+   if((P1IN & BIT3) == BIT3){           // If P1.3 is unpressed,
+       P1IFG &= 0x00;                   // Interrupt closes
+       counter = 0;                     // Counter = 0;
+   }
+}
+
+// Timer A1 interrupt service routine
+#pragma vector=TIMER1_A0_VECTOR
+__interrupt void Timer_A1 (void)
+{
+    counter++;      // Counter increments every 1/100th second
+    P1OUT |= BIT6;  // P1.6 set on to show button is pressed (mostly for debugging)
+}
+
+// Timer A0 interrupt service routine
+#pragma vector=TIMER0_A0_VECTOR
+__interrupt void Timer_A0 (void)
+{
+   TA1CTL &= ~MC_3;   // Timer A1 set off
+   P1OUT ^= BIT0;     // LED blinks 
+   P1OUT &= ~BIT6;    // P1.6 turns off 
+}
+
+/////Same header files as other code//////
