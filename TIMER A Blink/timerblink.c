@@ -22,7 +22,7 @@ void main(void)
 
   P1OUT &= 0x00;               //Clears outputs
   P1DIR &= 0x00;                //All pins set to out
-  P1DIR |= BIT0 + BIT6;            // P1.0 and P1.6 set to input
+  P1DIR |= BIT0 + BIT6;            // P1.0 and P1.6 set to output
   _BIS_SR(CPUOFF + GIE);          // Enter LPM0 when interrupt 
 }
 
