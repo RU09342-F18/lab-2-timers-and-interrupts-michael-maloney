@@ -57,7 +57,7 @@ int timerConvert(int Hz, int div);
 
 int timerConvert(int Hz,  int div){
    int CCR = 0;
-   CCR= 1000000/div * Hz;
+   CCR= 1000000/div * 1/Hz;
    return CCR;
 }
 
